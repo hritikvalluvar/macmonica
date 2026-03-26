@@ -35,11 +35,11 @@ dependencies = [
 ]
 
 [project.scripts]
-macmonica = "sysmon.__main__:main"
+macmonica = "macmonica.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/hritikvalluvar/macmonica"
 Issues = "https://github.com/hritikvalluvar/macmonica/issues"
 
 [tool.setuptools.packages.find]
-include = ["sysmon*"]
+include = ["macmonica*"]

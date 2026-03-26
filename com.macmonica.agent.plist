@@ -3,12 +3,12 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.sysmon.agent</string>
+    <string>com.macmonica.agent</string>
     <key>ProgramArguments</key>
     <array>
         <string>/opt/homebrew/Caskroom/miniforge/base/bin/python3</string>
         <string>-m</string>
-        <string>sysmon</string>
+        <string>macmonica</string>
         <string>collect</string>
     </array>
     <key>WorkingDirectory</key>
@@ -18,8 +18,8 @@
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/Users/hritikvalluvar/.sysmon/collector.log</string>
+    <string>/Users/hritikvalluvar/.macmonica/collector.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/hritikvalluvar/.sysmon/collector-err.log</string>
+    <string>/Users/hritikvalluvar/.macmonica/collector-err.log</string>
 </dict>
 </plist>

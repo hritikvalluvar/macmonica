@@ -85,4 +85,4 @@ def run_digest(notify: bool = False, today: bool = False):
             short += f", Health {bat_cap}%"
         if alerts:
             short += f", {len(alerts)} alerts"
-        send_notification(f"Sysmon — {label}", short)
+        send_notification(f"Macmonica — {label}", short)

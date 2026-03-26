@@ -7,13 +7,13 @@ import time
 
 import psutil
 
-from .config import load_config, SYSMON_DIR
+from .config import load_config, MACMONICA_DIR
 from .db import get_connection, init_db, insert_snapshot_with_processes, cleanup
 from .macos import get_battery_health, get_thermal_status, get_wifi_info
 
-logger = logging.getLogger("sysmon.collector")
+logger = logging.getLogger("macmonica.collector")
 
-PID_FILE = SYSMON_DIR / "collector.pid"
+PID_FILE = MACMONICA_DIR / "collector.pid"
 _shutdown = False
 
 # Non-blocking CPU: call cpu_percent() without interval, use delta from previous call

@@ -9,7 +9,7 @@ from datetime import datetime
 from .db import get_recent_snapshots, get_last_alert_of_type, insert_alert, get_snapshots
 from .macos import send_notification, send_webhook
 
-logger = logging.getLogger("sysmon.alerts")
+logger = logging.getLogger("macmonica.alerts")
 
 
 def _in_quiet_hours(config: dict) -> bool:
@@ -189,7 +189,7 @@ def _run_auto_actions(config: dict, snapshot: dict):
             if cmd == "kill" and action.get("process"):
                 _kill_process(action["process"])
             elif cmd == "notify":
-                send_notification("Sysmon Auto", action.get("message", f"{metric} triggered"))
+                send_notification("Macmonica Auto", action.get("message", f"{metric} triggered"))
 
 
 def _kill_process(name: str):
@@ -217,7 +217,7 @@ def _fire(conn, config, alert_type, message, value, cooldown, quiet=False):
     insert_alert(conn, alert_type, message, value)
 
     if not quiet:
-        send_notification("Sysmon", message)
+        send_notification("Macmonica", message)
 
     # Webhook
     webhook_url = config.get("webhook_url")

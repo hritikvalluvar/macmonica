@@ -52,7 +52,7 @@ def show_history(period: str):
         alerts = get_alerts(conn, since)
 
     if not rows:
-        console.print(f"[dim]No data for the last {period}. Run 'sysmon collect' to start gathering data.[/dim]")
+        console.print(f"[dim]No data for the last {period}. Run 'macmonica collect' to start gathering data.[/dim]")
         return
 
     cpu_vals = [r["cpu_avg"] for r in rows if r["cpu_avg"] is not None]

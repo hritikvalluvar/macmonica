@@ -3,9 +3,9 @@
 import json
 from pathlib import Path
 
-SYSMON_DIR = Path.home() / ".sysmon"
-DB_PATH = SYSMON_DIR / "sysmon.db"
-CONFIG_PATH = SYSMON_DIR / "config.json"
+MACMONICA_DIR = Path.home() / ".macmonica"
+DB_PATH = MACMONICA_DIR / "macmonica.db"
+CONFIG_PATH = MACMONICA_DIR / "config.json"
 
 DEFAULTS = {
     "collect_interval": 60,
@@ -34,7 +34,7 @@ DEFAULTS = {
 
 
 def ensure_dir():
-    SYSMON_DIR.mkdir(parents=True, exist_ok=True)
+    MACMONICA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_config() -> dict:
@@ -46,7 +46,7 @@ def load_config() -> dict:
             _deep_merge(config, user)
         except (json.JSONDecodeError, OSError):
             import logging
-            logging.getLogger("sysmon").warning("Failed to parse config at %s, using defaults", CONFIG_PATH)
+            logging.getLogger("macmonica").warning("Failed to parse config at %s, using defaults", CONFIG_PATH)
     _validate(config)
     return config
 

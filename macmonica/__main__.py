@@ -1,4 +1,4 @@
-"""CLI entry point for sysmon."""
+"""CLI entry point for macmonica."""
 
 import argparse
 import logging
@@ -187,7 +187,7 @@ def _show_status():
         stats = get_db_stats(conn)
 
     console = Console()
-    table = Table(title="Sysmon Status")
+    table = Table(title="Macmonica Status")
     table.add_column("Metric", style="bold")
     table.add_column("Value")
 
@@ -216,7 +216,7 @@ def _show_status():
             ago_str = f"{ago // 3600}h ago"
         table.add_row("Last snapshot", f"{last.strftime('%Y-%m-%d %H:%M:%S')} ({ago_str})")
     else:
-        table.add_row("Last snapshot", "[dim]None — run 'sysmon collect-once' first[/dim]")
+        table.add_row("Last snapshot", "[dim]None — run 'macmonica collect-once' first[/dim]")
 
     console.print(table)
 
@@ -293,11 +293,11 @@ def _install():
     import subprocess
     from pathlib import Path
     from rich.console import Console
-    from .config import ensure_dir, save_default_config, CONFIG_PATH, SYSMON_DIR
+    from .config import ensure_dir, save_default_config, CONFIG_PATH, MACMONICA_DIR
 
     console = Console()
     python = sys.executable
-    macmonica_bin = shutil.which("macmonica") or f"{python} -m sysmon"
+    macmonica_bin = shutil.which("macmonica") or f"{python} -m macmonica"
     home = Path.home()
     plist_name = "com.macmonica.collector.plist"
     plist_dst = home / "Library" / "LaunchAgents" / plist_name
@@ -327,7 +327,7 @@ def _install():
     <array>
         <string>{python}</string>
         <string>-m</string>
-        <string>sysmon</string>
+        <string>macmonica</string>
         <string>collect</string>
     </array>
     <key>RunAtLoad</key>
@@ -335,9 +335,9 @@ def _install():
     <key>KeepAlive</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>{SYSMON_DIR}/collector.log</string>
+    <string>{MACMONICA_DIR}/collector.log</string>
     <key>StandardErrorPath</key>
-    <string>{SYSMON_DIR}/collector-err.log</string>
+    <string>{MACMONICA_DIR}/collector-err.log</string>
 </dict>
 </plist>"""
 
@@ -346,11 +346,11 @@ def _install():
     console.print(f"  [green]Collector installed[/green] — runs on login, collecting every 60s")
 
     # 3. Add daily digest cron job (8am)
-    cron_line = f"0 8 * * * {python} -m sysmon digest --notify"
+    cron_line = f"0 8 * * * {python} -m macmonica digest --notify"
     result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
     existing = result.stdout if result.returncode == 0 else ""
 
-    if "sysmon digest" not in existing and "macmonica" not in existing:
+    if "macmonica digest" not in existing and "macmonica" not in existing:
         new_cron = existing.rstrip("\n") + "\n" + cron_line + "\n" if existing.strip() else cron_line + "\n"
         subprocess.run(["crontab", "-"], input=new_cron, text=True, capture_output=True)
         console.print(f"  [green]Daily digest cron[/green] — 8am notification with yesterday's summary")
@@ -389,10 +389,10 @@ def _uninstall():
 
     # 2. Remove digest cron
     result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
-    if result.returncode == 0 and "sysmon digest" in result.stdout:
+    if result.returncode == 0 and "macmonica digest" in result.stdout:
         new_cron = "\n".join(
             line for line in result.stdout.splitlines()
-            if "sysmon digest" not in line
+            if "macmonica digest" not in line
         ).strip() + "\n"
         if new_cron.strip():
             subprocess.run(["crontab", "-"], input=new_cron, text=True, capture_output=True)
@@ -403,7 +403,7 @@ def _uninstall():
         console.print("  [dim]No digest cron job found[/dim]")
 
     console.print()
-    console.print("[dim]Data at ~/.sysmon/ was kept. Delete it manually if you want: rm -rf ~/.sysmon[/dim]")
+    console.print("[dim]Data at ~/.macmonica/ was kept. Delete it manually if you want: rm -rf ~/.macmonica[/dim]")
     console.print()
 
 

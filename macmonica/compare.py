@@ -30,7 +30,7 @@ def run_compare(period_a: str, period_b: str):
         alerts_b = [a for a in get_alerts(conn, now - sec_b) if a["ts"] < now - sec_a]
 
     if not rows_a and not rows_b:
-        console.print("[dim]No data. Run 'sysmon collect' first.[/dim]")
+        console.print("[dim]No data. Run 'macmonica collect' first.[/dim]")
         return
 
     def _stats(rows, key):
