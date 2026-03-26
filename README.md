@@ -4,7 +4,7 @@ A lightweight macOS system health monitor that tracks metrics over time, sends s
 
 **What makes it different from htop/btop/glances:** Those are live-only dashboards. macmonica tracks history, predicts battery degradation, groups processes by app, sends macOS notifications, and tells you *why* your Mac is slow — not just *that* it's slow.
 
-![macmonica dashboard](https://raw.githubusercontent.com/hritik-valluvar/macmonica/master/assets/dashboard.png)
+![macmonica dashboard](https://raw.githubusercontent.com/hritikvalluvar/macmonica/master/assets/dashboard.png)
 
 ## Install
 
