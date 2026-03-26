@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "macmonica"
+version = "1.0.0"
+description = "Lightweight macOS system health monitor with historical tracking, smart alerts, and actionable insights — Monica would be proud of how clean your system runs"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Hritik Valluvar"},
+]
+keywords = ["macos", "system-monitor", "battery", "health", "performance", "terminal", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: MacOS X",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Monitoring",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "psutil>=5.9",
+    "rich>=13.0",
+]
+
+[project.scripts]
+macmonica = "sysmon.__main__:main"
+
+[project.urls]
+Homepage = "https://github.com/hritikvalluvar/macmonica"
+Issues = "https://github.com/hritikvalluvar/macmonica/issues"
+
+[tool.setuptools.packages.find]
+include = ["sysmon*"]

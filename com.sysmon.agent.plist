@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sysmon.agent</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/Caskroom/miniforge/base/bin/python3</string>
+        <string>-m</string>
+        <string>sysmon</string>
+        <string>collect</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/hritikvalluvar/Projects/Tools/sysmon</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/hritikvalluvar/.sysmon/collector.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/hritikvalluvar/.sysmon/collector-err.log</string>
+</dict>
+</plist>
