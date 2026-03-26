@@ -19,11 +19,8 @@ macmonica doctor
 ## Quick Start
 
 ```bash
-# Start the background collector (gathers data every 60s)
-macmonica collect &
-
-# Or install as a launchd service (auto-starts on login)
-bash setup.sh
+# Set up background collector + daily digest (one command)
+macmonica install
 
 # See what's happening right now
 macmonica why
@@ -33,6 +30,9 @@ macmonica
 
 # What drained my battery?
 macmonica blame
+
+# To remove
+macmonica uninstall
 ```
 
 ## Commands

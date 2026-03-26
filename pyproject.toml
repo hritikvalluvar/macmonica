@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "macmonica"
-version = "1.0.0"
+version = "1.1.0"
 description = "Lightweight macOS system health monitor with historical tracking, smart alerts, and actionable insights — Monica would be proud of how clean your system runs"
 readme = "README.md"
 license = {text = "MIT"}

@@ -10,6 +10,8 @@ def main():
     sub = parser.add_subparsers(dest="command")
 
     sub.add_parser("dashboard", help="Live dashboard (default)")
+    sub.add_parser("install", help="Set up collector + daily digest (launchd + cron)")
+    sub.add_parser("uninstall", help="Remove collector and daily digest")
     sub.add_parser("collect", help="Run collector daemon")
     sub.add_parser("collect-once", help="Single collection snapshot")
 
@@ -53,7 +55,13 @@ def main():
     args = parser.parse_args()
     cmd = args.command
 
-    if cmd in ("collect", "collect-once"):
+    if cmd == "install":
+        _install()
+
+    elif cmd == "uninstall":
+        _uninstall()
+
+    elif cmd in ("collect", "collect-once"):
         logging.basicConfig(
             level=logging.INFO,
             format="%(asctime)s %(levelname)s %(message)s",
@@ -277,6 +285,126 @@ def _show_usb():
     console.print(table)
     watts = total_ma * 5 / 1000  # Rough estimate at 5V
     console.print(f"\n  [dim]Total USB power draw: ~{total_ma}mA (~{watts:.1f}W)[/dim]\n")
+
+
+def _install():
+    import os
+    import shutil
+    import subprocess
+    from pathlib import Path
+    from rich.console import Console
+    from .config import ensure_dir, save_default_config, CONFIG_PATH, SYSMON_DIR
+
+    console = Console()
+    python = sys.executable
+    macmonica_bin = shutil.which("macmonica") or f"{python} -m sysmon"
+    home = Path.home()
+    plist_name = "com.macmonica.collector.plist"
+    plist_dst = home / "Library" / "LaunchAgents" / plist_name
+
+    console.print("[bold]Installing macmonica...[/bold]\n")
+
+    # 1. Create data directory + default config
+    ensure_dir()
+    if not CONFIG_PATH.exists():
+        save_default_config()
+        console.print(f"  [green]Created config[/green] at {CONFIG_PATH}")
+    else:
+        console.print(f"  [dim]Config already exists at {CONFIG_PATH}[/dim]")
+
+    # 2. Create and load launchd plist for collector
+    # Unload existing if present
+    if plist_dst.exists():
+        subprocess.run(["launchctl", "unload", str(plist_dst)], capture_output=True)
+
+    plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.macmonica.collector</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{python}</string>
+        <string>-m</string>
+        <string>sysmon</string>
+        <string>collect</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>{SYSMON_DIR}/collector.log</string>
+    <key>StandardErrorPath</key>
+    <string>{SYSMON_DIR}/collector-err.log</string>
+</dict>
+</plist>"""
+
+    plist_dst.write_text(plist_content)
+    subprocess.run(["launchctl", "load", str(plist_dst)], capture_output=True)
+    console.print(f"  [green]Collector installed[/green] — runs on login, collecting every 60s")
+
+    # 3. Add daily digest cron job (8am)
+    cron_line = f"0 8 * * * {python} -m sysmon digest --notify"
+    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    existing = result.stdout if result.returncode == 0 else ""
+
+    if "sysmon digest" not in existing and "macmonica" not in existing:
+        new_cron = existing.rstrip("\n") + "\n" + cron_line + "\n" if existing.strip() else cron_line + "\n"
+        subprocess.run(["crontab", "-"], input=new_cron, text=True, capture_output=True)
+        console.print(f"  [green]Daily digest cron[/green] — 8am notification with yesterday's summary")
+    else:
+        console.print(f"  [dim]Daily digest cron already exists[/dim]")
+
+    console.print()
+    console.print("[bold green]Done![/bold green] macmonica is running.\n")
+    console.print("  macmonica status    — check collector")
+    console.print("  macmonica doctor    — full health check")
+    console.print("  macmonica why       — what's going on?")
+    console.print("  macmonica           — live dashboard")
+    console.print("  macmonica uninstall — remove everything")
+    console.print()
+
+
+def _uninstall():
+    import subprocess
+    from pathlib import Path
+    from rich.console import Console
+
+    console = Console()
+    home = Path.home()
+    plist_name = "com.macmonica.collector.plist"
+    plist_dst = home / "Library" / "LaunchAgents" / plist_name
+
+    console.print("[bold]Uninstalling macmonica...[/bold]\n")
+
+    # 1. Stop and remove launchd agent
+    if plist_dst.exists():
+        subprocess.run(["launchctl", "unload", str(plist_dst)], capture_output=True)
+        plist_dst.unlink()
+        console.print("  [green]Removed collector launchd agent[/green]")
+    else:
+        console.print("  [dim]No collector launchd agent found[/dim]")
+
+    # 2. Remove digest cron
+    result = subprocess.run(["crontab", "-l"], capture_output=True, text=True)
+    if result.returncode == 0 and "sysmon digest" in result.stdout:
+        new_cron = "\n".join(
+            line for line in result.stdout.splitlines()
+            if "sysmon digest" not in line
+        ).strip() + "\n"
+        if new_cron.strip():
+            subprocess.run(["crontab", "-"], input=new_cron, text=True, capture_output=True)
+        else:
+            subprocess.run(["crontab", "-r"], capture_output=True)
+        console.print("  [green]Removed daily digest cron job[/green]")
+    else:
+        console.print("  [dim]No digest cron job found[/dim]")
+
+    console.print()
+    console.print("[dim]Data at ~/.sysmon/ was kept. Delete it manually if you want: rm -rf ~/.sysmon[/dim]")
+    console.print()
 
 
 def _handle_config(args):
