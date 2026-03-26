@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS snapshots (
     thermal_warning TEXT,
     wifi_rssi INTEGER,
     wifi_noise INTEGER,
-    wifi_tx_rate INTEGER
+    wifi_tx_rate INTEGER,
+    battery_temp REAL
 );
 
 CREATE INDEX IF NOT EXISTS idx_snapshots_ts ON snapshots(ts);
@@ -73,6 +74,7 @@ MIGRATIONS = [
     "ALTER TABLE snapshots ADD COLUMN wifi_rssi INTEGER",
     "ALTER TABLE snapshots ADD COLUMN wifi_noise INTEGER",
     "ALTER TABLE snapshots ADD COLUMN wifi_tx_rate INTEGER",
+    "ALTER TABLE snapshots ADD COLUMN battery_temp REAL",
 ]
 
 
@@ -96,7 +98,7 @@ def insert_snapshot_with_processes(conn: sqlite3.Connection, data: dict, procs: 
         "net_sent_bytes", "net_recv_bytes",
         "battery_percent", "battery_plugged", "battery_cycle_count",
         "battery_max_capacity", "battery_condition", "thermal_warning",
-        "wifi_rssi", "wifi_noise", "wifi_tx_rate",
+        "wifi_rssi", "wifi_noise", "wifi_tx_rate", "battery_temp",
     ]
     placeholders = ", ".join("?" for _ in cols)
     col_names = ", ".join(cols)

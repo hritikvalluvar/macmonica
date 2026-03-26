@@ -79,6 +79,7 @@ def collect_snapshot() -> dict:
         "wifi_rssi": wifi.get("rssi") if wifi else None,
         "wifi_noise": wifi.get("noise") if wifi else None,
         "wifi_tx_rate": wifi.get("tx_rate") if wifi else None,
+        "battery_temp": bat_health.get("temperature") if bat_health else None,
     }
 
 

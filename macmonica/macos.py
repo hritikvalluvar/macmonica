@@ -39,6 +39,13 @@ def get_battery_health() -> dict | None:
     if m:
         result["condition"] = m.group(1)
 
+    # Battery temperature from ioreg (centidegrees Celsius)
+    temp_out = _run(["ioreg", "-rc", "AppleSmartBattery"])
+    if temp_out:
+        tm = re.search(r'"Temperature"\s*=\s*(\d+)', temp_out)
+        if tm:
+            result["temperature"] = int(tm.group(1)) / 100  # Convert to °C
+
     if result:
         _battery_cache["data"] = result
         _battery_cache["ts"] = now

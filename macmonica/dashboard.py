@@ -168,6 +168,10 @@ def battery_panel():
         t.add_row("Health", f"[{cap_color}]{cap}%[/{cap_color}]")
         t.add_row("Cycles", str(health.get("cycle_count", "?")))
         t.add_row("Condition", str(health.get("condition", "?")))
+        temp = health.get("temperature")
+        if temp is not None:
+            temp_color = "red" if temp >= 40 else "yellow" if temp >= 35 else "green"
+            t.add_row("Temp", f"[{temp_color}]{temp:.1f}°C[/{temp_color}]")
 
     return Panel(t, title="[bold green]Battery[/bold green]", border_style="green")
 

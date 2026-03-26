@@ -83,6 +83,17 @@ def check_and_fire_alerts(conn, snapshot: dict, config: dict):
                 snapshot["battery_max_capacity"], 86400, quiet,
             )
 
+    # Battery temperature
+    bat_temp_cfg = alerts_cfg.get("battery_temp", {})
+    if bat_temp_cfg.get("enabled", True) and snapshot.get("battery_temp"):
+        threshold = bat_temp_cfg.get("threshold", 40)
+        if snapshot["battery_temp"] >= threshold:
+            _fire(
+                conn, config, "battery_temp",
+                f"Battery temperature {snapshot['battery_temp']:.1f}°C — reduce load or move to cooler area",
+                snapshot["battery_temp"], cooldown, quiet,
+            )
+
     # WiFi signal weak
     wifi_cfg = alerts_cfg.get("wifi_weak", {})
     if wifi_cfg.get("enabled", True) and snapshot.get("wifi_rssi"):

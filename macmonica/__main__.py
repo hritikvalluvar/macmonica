@@ -5,6 +5,50 @@ import logging
 import sys
 
 
+def _check_for_update():
+    """Check PyPI for a newer version. Cached for 24h, never blocks on failure."""
+    import json
+    import time
+    from pathlib import Path
+
+    from . import __version__
+    from .config import MACMONICA_DIR
+
+    cache_file = MACMONICA_DIR / ".update_check"
+    now = time.time()
+
+    # Only check once per day
+    if cache_file.exists():
+        try:
+            cached = json.loads(cache_file.read_text())
+            if now - cached.get("ts", 0) < 86400:
+                latest = cached.get("latest")
+                if latest and latest != __version__:
+                    return latest
+                return None
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            "https://pypi.org/pypi/macmonica/json",
+            headers={"Accept": "application/json"},
+        )
+        resp = urllib.request.urlopen(req, timeout=3)
+        data = json.loads(resp.read())
+        latest = data["info"]["version"]
+
+        MACMONICA_DIR.mkdir(parents=True, exist_ok=True)
+        cache_file.write_text(json.dumps({"ts": now, "latest": latest}))
+
+        if latest != __version__:
+            return latest
+    except Exception:
+        pass
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(prog="macmonica", description="macOS System Health Monitor")
     sub = parser.add_subparsers(dest="command")
@@ -127,6 +171,20 @@ def main():
     else:
         from .dashboard import run_dashboard
         run_dashboard()
+
+    # Show update notice (skip for background commands)
+    if cmd not in ("collect", "collect-once"):
+        try:
+            latest = _check_for_update()
+            if latest:
+                from rich.console import Console
+                from . import __version__
+                Console().print(
+                    f"\n[yellow]Update available:[/yellow] {__version__} → [green]{latest}[/green]"
+                    f"  —  [dim]pip install --upgrade macmonica[/dim]"
+                )
+        except Exception:
+            pass
 
 
 def _show_alerts():

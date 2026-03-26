@@ -89,6 +89,16 @@ def run_doctor():
         else:
             status = "charging" if bat.power_plugged else "on battery"
             checks.append(("Battery Level", True, f"{bat.percent}% ({status})"))
+        # Battery temperature
+        if health:
+            temp = health.get("temperature")
+            if temp is not None:
+                if temp >= 40:
+                    checks.append(("Battery Temp", False, f"{temp:.1f}°C — too hot, reduce load"))
+                elif temp >= 35:
+                    checks.append(("Battery Temp", None, f"{temp:.1f}°C — warm"))
+                else:
+                    checks.append(("Battery Temp", True, f"{temp:.1f}°C"))
     else:
         checks.append(("Battery", True, "No battery (desktop)"))
 
