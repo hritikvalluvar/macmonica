@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev, master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff
+      - run: ruff check macmonica/
+      - run: ruff format --check macmonica/
+
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install build
+      - run: python -m build
+      - run: pip install dist/*.whl
+      - run: python -c "import macmonica; print(macmonica.__version__)"
+
+  smoke-test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install .
+      - name: CLI smoke test
+        run: |
+          macmonica --help
+          macmonica dashboard --help
+          macmonica install --help
+          macmonica uninstall --help
+          macmonica collect --help
+          macmonica collect-once --help
+          macmonica history --help
+          macmonica alerts --help
+          macmonica recommend --help
+          macmonica doctor --help
+          macmonica why --help
+          macmonica status --help
+          macmonica top --help
+          macmonica blame --help
+          macmonica wake-log --help
+          macmonica usb --help
+          macmonica compare --help
+          macmonica export --help
+          macmonica digest --help
+          macmonica report --help
+          macmonica config --help
+
+  version-check:
+    if: github.event_name == 'pull_request' && github.base_ref == 'master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check version was bumped
+        run: |
+          BASE_VERSION=$(git show origin/master:macmonica/__init__.py | grep -oP '(?<=__version__ = ")[^"]+')
+          PR_VERSION=$(grep -oP '(?<=__version__ = ")[^"]+' macmonica/__init__.py)
+          echo "master: $BASE_VERSION → PR: $PR_VERSION"
+          if [ "$BASE_VERSION" = "$PR_VERSION" ]; then
+            echo "::error::Version in __init__.py was not bumped. Bump the version before merging to master."
+            exit 1
+          fi
+
+  version-sync:
+    if: github.event_name == 'pull_request' && github.base_ref == 'master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check __init__.py and pyproject.toml versions match
+        run: |
+          INIT_VERSION=$(grep -oP '(?<=__version__ = ")[^"]+' macmonica/__init__.py)
+          TOML_VERSION=$(grep -oP '(?<=^version = ")[^"]+' pyproject.toml)
+          echo "__init__.py: $INIT_VERSION | pyproject.toml: $TOML_VERSION"
+          if [ "$INIT_VERSION" != "$TOML_VERSION" ]; then
+            echo "::error::Version mismatch — __init__.py ($INIT_VERSION) != pyproject.toml ($TOML_VERSION)"
+            exit 1
+          fi
