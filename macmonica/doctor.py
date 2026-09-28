@@ -178,7 +178,7 @@ def _check_collector(plist=None):
 
     try:
         args = plistlib.loads(plist.read_bytes()).get("ProgramArguments") or []
-    except Exception as exc:
+    except (OSError, ValueError, plistlib.InvalidFileException) as exc:
         return ("Collector", False, f"Cannot read {plist.name}: {exc}")
 
     if not args:
