@@ -1,4 +1,4 @@
-"""Alert system — thresholds, anomaly detection, auto-actions, webhooks, quiet hours."""
+"""Alert system — thresholds, anomaly detection, trend alerts, auto-actions, webhooks."""
 
 import logging
 import os
@@ -27,7 +27,7 @@ def _in_quiet_hours(config: dict) -> bool:
 
 def check_and_fire_alerts(conn, snapshot: dict, config: dict):
     alerts_cfg = config.get("alerts", {})
-    cooldown = config.get("alert_cooldown_minutes", 15) * 60
+    cooldown = config.get("alert_cooldown_minutes", 30) * 60
     quiet = _in_quiet_hours(config)
 
     # CPU sustained
@@ -105,10 +105,15 @@ def check_and_fire_alerts(conn, snapshot: dict, config: dict):
                 snapshot["wifi_rssi"], cooldown, quiet,
             )
 
-    # Anomaly detection
+    # Anomaly detection (σ-based with process attribution)
     anomaly_cfg = alerts_cfg.get("anomaly", {})
     if anomaly_cfg.get("enabled", True):
         _check_anomalies(conn, config, snapshot, anomaly_cfg, cooldown, quiet)
+
+    # Trend alerts (gradual shifts over days)
+    trend_cfg = alerts_cfg.get("trends", {})
+    if trend_cfg.get("enabled", True):
+        _check_trends(conn, config, snapshot, trend_cfg, quiet)
 
     # Auto-actions
     _run_auto_actions(config, snapshot)
@@ -142,30 +147,150 @@ def _check_disk_io(conn, config, snapshot, cfg, cooldown, quiet):
 
 
 def _check_anomalies(conn, config, snapshot, cfg, cooldown, quiet):
-    threshold = cfg.get("deviation_percent", 50)
+    """Detect anomalies using standard deviation bands + time-of-day baseline.
+
+    Instead of comparing against a flat 7-day average (which makes 23% CPU
+    "anomalous" when the average is 15%), this uses:
+    1. Time-of-day baseline: compare against the same 2-hour window over the past 7 days
+    2. Standard deviation: alert only when >3σ above the time-of-day mean
+    3. Minimum absolute thresholds: ignore low values regardless of deviation
+    4. Process attribution: include the top process when alerting
+    """
+    min_cpu = cfg.get("min_cpu", 40)
+    min_mem = cfg.get("min_mem", 85)
+    sigma_threshold = cfg.get("sigma", 3.0)
+
     week_ago = time.time() - 7 * 86400
     baseline = get_snapshots(conn, week_ago)
 
-    if len(baseline) < 60:
+    if len(baseline) < 120:  # need decent data before alerting
         return
 
-    for key, label in [("cpu_avg", "CPU"), ("mem_percent", "Memory")]:
-        vals = [r[key] for r in baseline if r[key] is not None]
-        if not vals:
+    # Filter baseline to same time-of-day window (±1 hour)
+    current_hour = datetime.now().hour
+    tod_baseline = []
+    for r in baseline:
+        h = datetime.fromtimestamp(r["ts"]).hour
+        # Within ±1 hour (wraps around midnight)
+        if abs(h - current_hour) <= 1 or abs(h - current_hour) >= 23:
+            tod_baseline.append(r)
+
+    # Fall back to full baseline if time-of-day window has too few samples
+    if len(tod_baseline) < 30:
+        tod_baseline = baseline
+
+    metrics = [
+        ("cpu_avg", "CPU", min_cpu),
+        ("mem_percent", "Memory", min_mem),
+    ]
+
+    for key, label, min_val in metrics:
+        vals = [r[key] for r in tod_baseline if r[key] is not None]
+        if len(vals) < 20:
             continue
 
         avg = sum(vals) / len(vals)
+        variance = sum((v - avg) ** 2 for v in vals) / len(vals)
+        std = variance ** 0.5
+
         current = snapshot.get(key)
-        if current is None or avg < 10:
+        if current is None or std < 1:  # skip if no variance
             continue
 
-        deviation = ((current - avg) / avg) * 100
-        if deviation > threshold:
+        # Must exceed both: absolute minimum AND statistical threshold
+        sigma_above = (current - avg) / std
+        if current >= min_val and sigma_above >= sigma_threshold:
+            # Attribute to top process
+            blame = _get_top_process_name(conn, snapshot)
+            blame_str = f" (top: {blame})" if blame else ""
             _fire(
                 conn, config, f"anomaly_{key}",
-                f"{label} at {current:.0f}% — {deviation:.0f}% above your 7-day avg ({avg:.0f}%)",
+                f"{label} at {current:.0f}% — {sigma_above:.1f}σ above normal for this time of day{blame_str}",
                 current, cooldown, quiet,
             )
+
+
+def _get_top_process_name(conn, snapshot) -> str | None:
+    """Get the top CPU process from the current snapshot's top_processes."""
+    try:
+        row = conn.execute(
+            "SELECT name, cpu_percent FROM top_processes "
+            "WHERE snapshot_id = (SELECT id FROM snapshots WHERE ts = ? LIMIT 1) "
+            "ORDER BY cpu_percent DESC LIMIT 1",
+            (snapshot["ts"],)
+        ).fetchone()
+        if row and row["cpu_percent"] > 5:
+            from .recommendations import normalize_process_name
+            return f"{normalize_process_name(row['name'])} {row['cpu_percent']:.0f}%"
+    except Exception:
+        pass
+    return None
+
+
+def _check_trends(conn, config, snapshot, cfg, quiet):
+    """Detect gradual shifts by comparing this week vs last week.
+
+    Fires at most once per day per trend type. Looks for:
+    - Memory baseline creeping up (possible leak or accumulation)
+    - Battery health declining faster than expected
+    - Disk usage growing steadily
+    """
+    cooldown = 86400  # once per day max
+
+    now = time.time()
+    this_week = get_snapshots(conn, now - 7 * 86400)
+    last_week_start = now - 14 * 86400
+    last_week_end = now - 7 * 86400
+
+    # Need two weeks of data
+    last_week = [r for r in get_snapshots(conn, last_week_start) if r["ts"] < last_week_end]
+    if len(this_week) < 200 or len(last_week) < 200:
+        return
+
+    # Memory trend: average memory this week vs last week
+    mem_this = [r["mem_percent"] for r in this_week if r["mem_percent"] is not None]
+    mem_last = [r["mem_percent"] for r in last_week if r["mem_percent"] is not None]
+    if mem_this and mem_last:
+        avg_this = sum(mem_this) / len(mem_this)
+        avg_last = sum(mem_last) / len(mem_last)
+        increase = avg_this - avg_last
+        min_increase = cfg.get("memory_increase_pct", 10)
+        if increase >= min_increase:
+            _fire(
+                conn, config, "trend_memory",
+                f"Memory usage up {increase:.0f}% this week vs last (avg {avg_last:.0f}% → {avg_this:.0f}%)",
+                avg_this, cooldown, quiet,
+            )
+
+    # Disk trend: steady growth
+    disk_this = [r["disk_percent"] for r in this_week if r["disk_percent"] is not None]
+    disk_last = [r["disk_percent"] for r in last_week if r["disk_percent"] is not None]
+    if disk_this and disk_last:
+        avg_this = sum(disk_this) / len(disk_this)
+        avg_last = sum(disk_last) / len(disk_last)
+        increase = avg_this - avg_last
+        min_increase = cfg.get("disk_increase_pct", 5)
+        if increase >= min_increase:
+            _fire(
+                conn, config, "trend_disk",
+                f"Disk usage up {increase:.1f}% this week vs last (avg {avg_last:.0f}% → {avg_this:.0f}%)",
+                avg_this, cooldown, quiet,
+            )
+
+    # Battery health trend: compare first and last readings over available data
+    caps_this = [r["battery_max_capacity"] for r in this_week if r["battery_max_capacity"] is not None]
+    caps_last = [r["battery_max_capacity"] for r in last_week if r["battery_max_capacity"] is not None]
+    if caps_this and caps_last:
+        health_now = caps_this[-1]
+        health_before = caps_last[0]
+        if health_before > health_now:
+            drop = health_before - health_now
+            if drop >= cfg.get("battery_health_drop_pct", 1):
+                _fire(
+                    conn, config, "trend_battery_health",
+                    f"Battery health dropped {drop}% over 2 weeks ({health_before}% → {health_now}%)",
+                    health_now, cooldown, quiet,
+                )
 
 
 def _run_auto_actions(config: dict, snapshot: dict):
