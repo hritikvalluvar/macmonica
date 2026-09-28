@@ -1,5 +1,10 @@
 # macmonica
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/hritikvalluvar/macmonica/master/assets/logo-wordmark-dark.png">
+  <img alt="macmonica" src="https://raw.githubusercontent.com/hritikvalluvar/macmonica/master/assets/logo-wordmark.png" width="420">
+</picture>
+
 A lightweight macOS system health monitor that tracks metrics over time, sends smart alerts, and tells you exactly what's draining your resources.
 
 **What makes it different from htop/btop/glances:** Those are live-only dashboards. macmonica tracks history, predicts battery degradation, groups processes by app, sends macOS notifications, and tells you *why* your Mac is slow — not just *that* it's slow.
