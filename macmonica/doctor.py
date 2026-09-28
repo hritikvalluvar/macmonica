@@ -134,6 +134,9 @@ def run_doctor():
     else:
         checks.append(("Memory Hogs", True, "No app using >3GB"))
 
+    # Collector agent
+    checks.append(_check_collector())
+
     # Render
     for name, ok, detail in checks:
         table.add_row(name, _verdict(ok), detail)
@@ -153,6 +156,46 @@ def run_doctor():
     else:
         console.print(f"  [green]All {passes} checks passed![/green]")
     console.print()
+
+
+def _check_collector(plist=None):
+    """Check that the launchd collector can still start and is collecting.
+
+    The plist records an absolute interpreter path at install time. If that
+    interpreter is later removed (a conda or brew cleanup), launchd parks the
+    job with exit 78 and collection stops silently — nothing surfaces it until
+    someone notices the history has a hole.
+    """
+    import os
+    import plistlib
+    from pathlib import Path
+
+    from .collector import PID_FILE
+
+    plist = Path(plist) if plist else Path.home() / "Library" / "LaunchAgents" / "com.macmonica.collector.plist"
+    if not plist.exists():
+        return ("Collector", None, "Not installed — run `macmonica install`")
+
+    try:
+        args = plistlib.loads(plist.read_bytes()).get("ProgramArguments") or []
+    except Exception as exc:
+        return ("Collector", False, f"Cannot read {plist.name}: {exc}")
+
+    if not args:
+        return ("Collector", False, f"No ProgramArguments in {plist.name} — run `macmonica install`")
+
+    python = Path(args[0])
+    if not python.exists():
+        return ("Collector", False, f"Interpreter is gone ({python}) — collection has stopped; run `macmonica install` to repoint it")
+
+    if PID_FILE.exists():
+        try:
+            os.kill(int(PID_FILE.read_text().strip()), 0)
+            return ("Collector", True, f"Running on {python}")
+        except (ValueError, ProcessLookupError, PermissionError):
+            return ("Collector", None, f"Stale PID file — not running; interpreter {python} is present")
+
+    return ("Collector", None, f"Not running; interpreter {python} is present — run `macmonica install`")
 
 
 def _fmt(b):
