@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" width="1280" height="320" role="img" aria-label="macmonica">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2a78d6"/>
+      <stop offset="1" stop-color="#1baf7a"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(16 32)">
+    <rect width="256" height="256" rx="57" fill="url(#g)"/>
+    <path d="M52 166 H84 L108 90 L128 150 L148 90 L172 166 H204"
+          fill="none" stroke="#ffffff" stroke-width="17"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="320" y="196" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="132" font-weight="600" letter-spacing="-4" fill="#ffffff">macmonica</text>
+</svg>
