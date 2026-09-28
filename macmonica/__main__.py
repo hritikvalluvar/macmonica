@@ -5,6 +5,21 @@ import logging
 import sys
 
 
+def _version_tuple(v):
+    """Parse a version string into comparable integers; unknown chunks sort as 0."""
+    parts = []
+    for chunk in str(v).split("."):
+        digits = "".join(c for c in chunk if c.isdigit())
+        parts.append(int(digits) if digits else 0)
+    return tuple(parts)
+
+
+def _is_newer(candidate, current):
+    a, b = _version_tuple(candidate), _version_tuple(current)
+    pad = max(len(a), len(b))
+    return a + (0,) * (pad - len(a)) > b + (0,) * (pad - len(b))
+
+
 def _check_for_update():
     """Check PyPI for a newer version. Cached for 24h, never blocks on failure."""
     import json
@@ -23,7 +38,7 @@ def _check_for_update():
             cached = json.loads(cache_file.read_text())
             if now - cached.get("ts", 0) < 86400:
                 latest = cached.get("latest")
-                if latest and latest != __version__:
+                if latest and _is_newer(latest, __version__):
                     return latest
                 return None
         except (json.JSONDecodeError, OSError):
@@ -42,7 +57,7 @@ def _check_for_update():
         MACMONICA_DIR.mkdir(parents=True, exist_ok=True)
         cache_file.write_text(json.dumps({"ts": now, "latest": latest}))
 
-        if latest != __version__:
+        if _is_newer(latest, __version__):
             return latest
     except Exception:
         pass
